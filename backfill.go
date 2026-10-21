@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"time"
@@ -69,24 +68,36 @@ func runBackfill(args []string) error {
 		return fmt.Errorf("ANEEL flags: %w", err)
 	}
 	if !manual {
-		if in.CelescPage, err = celesc.NewClient().Page(ctx); err != nil {
+		if in.Aliquotas, err = celesc.NewClient().History(ctx); err != nil {
 			return fmt.Errorf("Celesc page: %w", err)
 		}
 	}
 
-	var w io.Writer = os.Stdout
-	if *out != "-" {
-		f, err := os.OpenFile(*out, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-		if err != nil {
-			return err
-		}
-		defer f.Close()
-		w = f
-	}
-	rep, err := backfill.Write(w, in, opt)
+	rep, err := writeOutput(*out, in, opt)
 	if err != nil {
 		return err
 	}
 	log.Printf("backfill: %d days, %d skipped (inputs not published), %d samples", rep.Days, rep.SkippedDays, rep.Samples)
 	return nil
+}
+
+// writeOutput writes the document to path, or to stdout for "-". A file that
+// can't be written in full is removed: a truncated one would load as a partial
+// history, and O_EXCL would refuse to overwrite it on the next run.
+func writeOutput(path string, in backfill.Inputs, opt backfill.Options) (backfill.Report, error) {
+	if path == "-" {
+		return backfill.Write(os.Stdout, in, opt)
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return backfill.Report{}, err
+	}
+	rep, err := backfill.Write(f, in, opt)
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(path)
+	}
+	return rep, err
 }

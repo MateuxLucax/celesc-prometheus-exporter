@@ -20,13 +20,22 @@ type fakes struct {
 	err       error // returned by every source when set
 }
 
+// fixed is a History with one value for every date.
+type fixed[T any] struct{ v T }
+
+func (h fixed[T]) At(time.Time) (T, error) { return h.v, nil }
+
 func (f *fakes) sources(withCelesc bool) Sources {
 	s := Sources{
-		Tarifa:   func(context.Context, time.Time) (aneel.Tarifa, error) { return f.tarifa, f.err },
-		Bandeira: func(context.Context, time.Time) (aneel.Bandeira, error) { return f.bandeira, f.err },
+		Tarifas: func(context.Context) (History[aneel.Tarifa], error) { return fixed[aneel.Tarifa]{f.tarifa}, f.err },
+		Bandeiras: func(context.Context) (History[aneel.Bandeira], error) {
+			return fixed[aneel.Bandeira]{f.bandeira}, f.err
+		},
 	}
 	if withCelesc {
-		s.Aliquotas = func(context.Context, time.Time) (celesc.Aliquotas, error) { return f.aliquotas, f.err }
+		s.Aliquotas = func(context.Context) (History[celesc.Aliquotas], error) {
+			return fixed[celesc.Aliquotas]{f.aliquotas}, f.err
+		}
 	}
 	return s
 }
@@ -128,5 +137,20 @@ func TestNoHealthBeforeFirstRefresh(t *testing.T) {
 	e := New((&fakes{}).sources(true), Config{ICMSPercent: 17})
 	if out := scrape(e); strings.Contains(out, "energia_fonte_sucesso{") {
 		t.Fatalf("health reported before any refresh:\n%s", out)
+	}
+}
+
+func TestBandeiraComponentWithoutTarifa(t *testing.T) {
+	f := &fakes{bandeira: aneel.Bandeira{Nome: "Amarela", Adicional: 0.01885}}
+	s := f.sources(false)
+	s.Tarifas = func(context.Context) (History[aneel.Tarifa], error) { return nil, errors.New("down") }
+	e := New(s, Config{ICMSPercent: 17})
+	_ = e.Refresh(context.Background())
+	out := scrape(e)
+	if !strings.Contains(out, `energia_tarifa_reais_kwh{componente="bandeira"} 0.01885`) {
+		t.Fatalf("bandeira component missing while the tariff is down:\n%s", out)
+	}
+	if strings.Contains(out, "energia_tarifa_final_reais_kwh") {
+		t.Fatalf("price exported without a tariff:\n%s", out)
 	}
 }

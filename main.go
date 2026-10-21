@@ -43,17 +43,7 @@ func main() {
 		log.Fatalf("config: %v", err)
 	}
 
-	ac := aneel.NewClient()
-	src := exporter.Sources{
-		Tarifa: func(ctx context.Context, now time.Time) (aneel.Tarifa, error) {
-			return ac.Tarifa(ctx, filter, now)
-		},
-		Bandeira: ac.Bandeira,
-	}
-	if !pisCofinsManual {
-		src.Aliquotas = celesc.NewClient().Aliquotas
-	}
-	exp := exporter.New(src, cfg)
+	exp := exporter.New(liveSources(aneel.NewClient(), celesc.NewClient(), filter, pisCofinsManual), cfg)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -87,6 +77,25 @@ func main() {
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server error: %v", err)
 	}
+}
+
+// liveSources wires the real clients into the exporter. cc is unused when
+// PIS/COFINS are manual.
+func liveSources(ac *aneel.Client, cc *celesc.Client, f aneel.Filter, pisCofinsManual bool) exporter.Sources {
+	src := exporter.Sources{
+		Tarifas: func(ctx context.Context) (exporter.History[aneel.Tarifa], error) {
+			return ac.Tarifas(ctx, f)
+		},
+		Bandeiras: func(ctx context.Context) (exporter.History[aneel.Bandeira], error) {
+			return ac.Bandeiras(ctx, aneel.RecentBandeiras)
+		},
+	}
+	if !pisCofinsManual {
+		src.Aliquotas = func(ctx context.Context) (exporter.History[celesc.Aliquotas], error) {
+			return cc.History(ctx)
+		}
+	}
+	return src
 }
 
 // loadConfig reads the environment. Money depends on these values, so anything

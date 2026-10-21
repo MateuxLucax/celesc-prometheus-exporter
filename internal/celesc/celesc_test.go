@@ -62,3 +62,15 @@ func TestParseRejects(t *testing.T) {
 		t.Error("month 13: want error")
 	}
 }
+
+func TestParseToleratesNbsp(t *testing.T) {
+	// The real page has rows like this one (01/2025, 05/2020).
+	row := `<td>01/2025</td><td>0,07%&nbsp;</td><td>&nbsp;0,33 %&nbsp;</td>`
+	got, err := Parse([]byte(row), time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PIS != 0.07 || got.COFINS != 0.33 || got.Referencia.Month() != time.January {
+		t.Fatalf("got %+v", got)
+	}
+}

@@ -59,7 +59,7 @@ All variables are optional; see [`.env.example`](.env.example). Invalid values s
 | `energia_tarifa_vigencia_{inicio,fim}_timestamp_seconds`, `energia_bandeira_competencia_timestamp_seconds`, `energia_pis_cofins_referencia_timestamp_seconds` | Which period each input refers to |
 | `energia_fonte_sucesso{fonte}`, `energia_fonte_ultimo_sucesso_timestamp_seconds{fonte}` | Health of each source |
 
-A source that fails keeps its last good value and flips `energia_fonte_sucesso` to 0. Price metrics only appear once every input has been read at least once, so a cold start never exports a price built from zeros. If a month hasn't been published yet (flag, PIS/COFINS), the latest earlier one is used; the `*_timestamp_seconds` gauges show when that happens.
+Each refresh keeps the whole published history, and every scrape picks the values in force at that moment, so a new month or a reajuste shows up at midnight rather than at the next refresh. A source that fails keeps its last good history and flips `energia_fonte_sucesso` to 0. Price metrics only appear once every input has been read at least once, so a cold start never exports a price built from zeros. If a month hasn't been published yet (flag, PIS/COFINS), the latest earlier one is used; the `*_timestamp_seconds` gauges show when that happens.
 
 ### Grafana / PromQL
 
@@ -88,11 +88,12 @@ Prometheus only has what it scraped, so a power history recorded before the expo
 ```bash
 # Same .env as the exporter, so ICMS and the tariff filter match.
 # -to: when the live exporter started scraping, so the two don't overlap.
-docker run --rm --env-file .env -v "$PWD:/out" ghcr.io/mateuxlucax/celesc-prometheus-exporter:latest \
+# --user: both images run as an unprivileged user that can't write to $PWD.
+docker run --rm --user "$(id -u):$(id -g)" --env-file .env -v "$PWD:/out" ghcr.io/mateuxlucax/celesc-prometheus-exporter:latest \
   backfill -from 2025-10-21 -to 2026-10-21T12:00:00-03:00 -o /out/energia.om
 
 # Turn it into TSDB blocks (monthly blocks; promtool's 2h default makes thousands)
-docker run --rm -v "$PWD:/out" --entrypoint promtool prom/prometheus:latest \
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/out" --entrypoint promtool prom/prometheus:latest \
   tsdb create-blocks-from openmetrics --max-block-duration=744h /out/energia.om /out/blocks
 
 # Move the blocks into Prometheus' TSDB directory (--storage.tsdb.path; with the

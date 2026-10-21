@@ -55,9 +55,11 @@ func fixtureExporter(t *testing.T, now time.Time) *Exporter {
 	cc := &celesc.Client{URL: srv.URL + "/celesc", HTTPClient: srv.Client(), AllowHTTP: true}
 	f := aneel.DefaultFilter()
 	e := New(Sources{
-		Tarifa:    func(ctx context.Context, now time.Time) (aneel.Tarifa, error) { return ac.Tarifa(ctx, f, now) },
-		Bandeira:  ac.Bandeira,
-		Aliquotas: cc.Aliquotas,
+		Tarifas: func(ctx context.Context) (History[aneel.Tarifa], error) { return ac.Tarifas(ctx, f) },
+		Bandeiras: func(ctx context.Context) (History[aneel.Bandeira], error) {
+			return ac.Bandeiras(ctx, aneel.RecentBandeiras)
+		},
+		Aliquotas: func(ctx context.Context) (History[celesc.Aliquotas], error) { return cc.History(ctx) },
 	}, Config{ICMSPercent: 17, Location: time.UTC})
 	e.Now = func() time.Time { return now }
 	if err := e.Refresh(context.Background()); err != nil {
@@ -156,5 +158,20 @@ func TestGoldenScrapeIsValidExposition(t *testing.T) {
 		if !line.MatchString(l) {
 			t.Errorf("malformed line %q", l)
 		}
+	}
+}
+
+// TestScrapeUsesMonthInForce refreshes on the last evening of August and
+// scrapes after midnight: September's PIS/COFINS apply at once, without
+// waiting for the next refresh.
+func TestScrapeUsesMonthInForce(t *testing.T) {
+	e := fixtureExporter(t, time.Date(2026, 8, 31, 22, 0, 0, 0, time.UTC))
+	e.Now = func() time.Time { return time.Date(2026, 9, 1, 1, 0, 0, 0, time.UTC) }
+	m := metrics(t, e)
+	if got := m[`energia_imposto_ratio{imposto="pis"}`]; math.Abs(got-0.0089) > 1e-12 {
+		t.Errorf("pis = %v, want September's 0.0089", got)
+	}
+	if got := m[`energia_imposto_ratio{imposto="cofins"}`]; math.Abs(got-0.0412) > 1e-12 {
+		t.Errorf("cofins = %v, want September's 0.0412", got)
 	}
 }
