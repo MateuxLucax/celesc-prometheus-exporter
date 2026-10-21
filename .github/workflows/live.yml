@@ -1,0 +1,27 @@
+# Weekly contract test against the real ANEEL API and Celesc page, to catch
+# upstream format changes before they silently freeze the exported price.
+# GitHub emails the repo owner when a scheduled run fails.
+name: Live sources
+
+on:
+  schedule:
+    - cron: "17 11 * * 1"  # Mondays, 08:17 in Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: go.mod
+      - name: Live test
+        env:
+          LIVE_TESTS: "1"
+        run: go test -run TestLiveSources -v ./internal/exporter

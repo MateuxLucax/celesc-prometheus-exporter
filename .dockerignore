@@ -7,6 +7,8 @@
 mise.toml
 README.md
 CLAUDE.md
+AGENTS.md
+grafana/
 LICENSE
 docker-compose.yml
 docker-compose.build.yml
@@ -25,3 +27,4 @@ bin/
 
 .DS_Store
 *.log
+assets/

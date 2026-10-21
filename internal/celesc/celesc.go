@@ -43,15 +43,20 @@ func NewClient() *Client {
 // Aliquotas returns the rates of now's month, or of the latest month published
 // before it.
 func (c *Client) Aliquotas(ctx context.Context, now time.Time) (Aliquotas, error) {
-	u, err := url.Parse(c.URL)
-	if err != nil {
-		return Aliquotas{}, err
-	}
-	body, err := fetch.Get(ctx, c.HTTPClient, u, c.AllowHTTP)
+	body, err := c.Page(ctx)
 	if err != nil {
 		return Aliquotas{}, err
 	}
 	return Parse(body, now)
+}
+
+// Page fetches the raw tariff page, for callers that Parse it for many dates.
+func (c *Client) Page(ctx context.Context) ([]byte, error) {
+	u, err := url.Parse(c.URL)
+	if err != nil {
+		return nil, err
+	}
+	return fetch.Get(ctx, c.HTTPClient, u, c.AllowHTTP)
 }
 
 // rowRe matches one table row: <td>MM/YYYY</td><td>x,xx%</td><td>y,yy%</td>,

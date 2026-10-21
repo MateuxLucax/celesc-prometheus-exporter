@@ -123,3 +123,10 @@ func TestLabelEscaping(t *testing.T) {
 		t.Fatalf("label not escaped:\n%s", out)
 	}
 }
+
+func TestNoHealthBeforeFirstRefresh(t *testing.T) {
+	e := New((&fakes{}).sources(true), Config{ICMSPercent: 17})
+	if out := scrape(e); strings.Contains(out, "energia_fonte_sucesso{") {
+		t.Fatalf("health reported before any refresh:\n%s", out)
+	}
+}

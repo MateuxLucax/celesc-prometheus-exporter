@@ -14,6 +14,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/MateuxLucax/energia-tarifa-exporter/internal/fetch"
@@ -124,6 +125,22 @@ type tarifaRecord struct {
 
 // Tarifa returns the tariff in force on day now for the filtered class.
 func (c *Client) Tarifa(ctx context.Context, f Filter, now time.Time) (Tarifa, error) {
+	h, err := c.Tarifas(ctx, f)
+	if err != nil {
+		return Tarifa{}, err
+	}
+	return h.At(now)
+}
+
+// TarifaHistory is every published tariff row of one class, newest first.
+type TarifaHistory []tarifaRecord
+
+// At returns the tariff in force on day now.
+func (h TarifaHistory) At(now time.Time) (Tarifa, error) { return pickTarifa(h, now) }
+
+// Tarifas returns the tariff history of the filtered class. ANEEL publishes a
+// couple of rows per year since 2010, so 500 covers it with room to spare.
+func (c *Client) Tarifas(ctx context.Context, f Filter) (TarifaHistory, error) {
 	filters, err := json.Marshal(map[string]string{
 		"SigAgente":              f.Distribuidora,
 		"DscSubGrupo":            f.Subgrupo,
@@ -131,20 +148,17 @@ func (c *Client) Tarifa(ctx context.Context, f Filter, now time.Time) (Tarifa, e
 		"DscClasse":              f.Classe,
 		"DscSubClasse":           f.Subclasse,
 		"DscBaseTarifaria":       "Tarifa de Aplicação",
+		"DscDetalhe":             "Não se aplica",
 	})
 	if err != nil {
-		return Tarifa{}, err
+		return nil, err
 	}
-	recs, err := search[tarifaRecord](ctx, c, url.Values{
+	return search[tarifaRecord](ctx, c, url.Values{
 		"resource_id": {resourceTarifas},
 		"filters":     {string(filters)},
 		"sort":        {"DatInicioVigencia desc"},
-		"limit":       {"50"},
+		"limit":       {"500"},
 	})
-	if err != nil {
-		return Tarifa{}, err
-	}
-	return pickTarifa(recs, now)
 }
 
 // pickTarifa chooses the row in force on now: the one whose vigência contains
@@ -202,15 +216,26 @@ type bandeiraRecord struct {
 // Bandeira returns the flag of now's month, or the latest published one if
 // ANEEL hasn't announced the current month yet.
 func (c *Client) Bandeira(ctx context.Context, now time.Time) (Bandeira, error) {
-	recs, err := search[bandeiraRecord](ctx, c, url.Values{
-		"resource_id": {resourceBandeiraAcionamento},
-		"sort":        {"DatCompetencia desc"},
-		"limit":       {"6"},
-	})
+	h, err := c.Bandeiras(ctx, 6)
 	if err != nil {
 		return Bandeira{}, err
 	}
-	return pickBandeira(recs, now)
+	return h.At(now)
+}
+
+// BandeiraHistory is the flag of each month, newest first.
+type BandeiraHistory []bandeiraRecord
+
+// At returns the flag of now's month, or the latest earlier one.
+func (h BandeiraHistory) At(now time.Time) (Bandeira, error) { return pickBandeira(h, now) }
+
+// Bandeiras returns the last n monthly flags (they start in 2015).
+func (c *Client) Bandeiras(ctx context.Context, n int) (BandeiraHistory, error) {
+	return search[bandeiraRecord](ctx, c, url.Values{
+		"resource_id": {resourceBandeiraAcionamento},
+		"sort":        {"DatCompetencia desc"},
+		"limit":       {strconv.Itoa(n)},
+	})
 }
 
 func pickBandeira(recs []bandeiraRecord, now time.Time) (Bandeira, error) {

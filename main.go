@@ -4,7 +4,8 @@
 // page, and ICMS from configuration.
 //
 // Run with "healthcheck" as the only argument to probe a running instance; the
-// runtime image is distroless and has no curl.
+// runtime image is distroless and has no curl. Run with "backfill" to write
+// past prices as OpenMetrics for promtool (see backfill.go).
 package main
 
 import (
@@ -29,6 +30,12 @@ func main() {
 	port := env("PORT", "3000")
 	if len(os.Args) == 2 && os.Args[1] == "healthcheck" {
 		os.Exit(healthcheck(port))
+	}
+	if len(os.Args) >= 2 && os.Args[1] == "backfill" {
+		if err := runBackfill(os.Args[2:]); err != nil {
+			log.Fatalf("backfill: %v", err)
+		}
+		return
 	}
 
 	cfg, filter, pisCofinsManual, interval, err := loadConfig()

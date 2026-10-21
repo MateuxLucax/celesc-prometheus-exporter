@@ -49,11 +49,13 @@ type Config struct {
 type source[T any] struct {
 	value       T
 	ok          bool    // a value was fetched at least once
+	attempted   bool    // a refresh has finished at least once
 	success     float64 // 1 if the last attempt succeeded
 	lastSuccess float64 // unix seconds
 }
 
 func (s *source[T]) update(v T, err error, now time.Time) error {
+	s.attempted = true
 	if err != nil {
 		s.success = 0
 		return err
@@ -206,17 +208,31 @@ func (e *Exporter) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 		writeGauge(w, "energia_cosip_reais_mes", "Monthly street-lighting fee (COSIP/CIP), in R$", e.cfg.COSIPReaisMes)
 	}
 
-	writeHeader(w, "energia_fonte_sucesso", "1 if the last refresh of the source succeeded, 0 otherwise")
-	writeSample(w, "energia_fonte_sucesso", [][2]string{{"fonte", "aneel_tarifa"}}, e.tarifa.success)
-	writeSample(w, "energia_fonte_sucesso", [][2]string{{"fonte", "aneel_bandeira"}}, e.bandeira.success)
+	// Health is only reported once a source has been tried, so the seconds
+	// before the first refresh finishes don't read as "source down".
+	type health struct {
+		name                 string
+		attempted            bool
+		success, lastSuccess float64
+	}
+	hs := []health{
+		{"aneel_tarifa", e.tarifa.attempted, e.tarifa.success, e.tarifa.lastSuccess},
+		{"aneel_bandeira", e.bandeira.attempted, e.bandeira.success, e.bandeira.lastSuccess},
+	}
 	if e.src.Aliquotas != nil {
-		writeSample(w, "energia_fonte_sucesso", [][2]string{{"fonte", "celesc_pis_cofins"}}, e.aliquotas.success)
+		hs = append(hs, health{"celesc_pis_cofins", e.aliquotas.attempted, e.aliquotas.success, e.aliquotas.lastSuccess})
+	}
+	writeHeader(w, "energia_fonte_sucesso", "1 if the last refresh of the source succeeded, 0 otherwise")
+	for _, h := range hs {
+		if h.attempted {
+			writeSample(w, "energia_fonte_sucesso", [][2]string{{"fonte", h.name}}, h.success)
+		}
 	}
 	writeHeader(w, "energia_fonte_ultimo_sucesso_timestamp_seconds", "Unix time of the source's last successful refresh")
-	writeSample(w, "energia_fonte_ultimo_sucesso_timestamp_seconds", [][2]string{{"fonte", "aneel_tarifa"}}, e.tarifa.lastSuccess)
-	writeSample(w, "energia_fonte_ultimo_sucesso_timestamp_seconds", [][2]string{{"fonte", "aneel_bandeira"}}, e.bandeira.lastSuccess)
-	if e.src.Aliquotas != nil {
-		writeSample(w, "energia_fonte_ultimo_sucesso_timestamp_seconds", [][2]string{{"fonte", "celesc_pis_cofins"}}, e.aliquotas.lastSuccess)
+	for _, h := range hs {
+		if h.attempted && h.lastSuccess > 0 {
+			writeSample(w, "energia_fonte_ultimo_sucesso_timestamp_seconds", [][2]string{{"fonte", h.name}}, h.lastSuccess)
+		}
 	}
 }
 
@@ -248,7 +264,7 @@ func writeSample(w io.Writer, name string, labels [][2]string, value float64) {
 			}
 			b.WriteString(l[0])
 			b.WriteString(`="`)
-			b.WriteString(escapeLabel(l[1]))
+			b.WriteString(EscapeLabel(l[1]))
 			b.WriteByte('"')
 		}
 		b.WriteByte('}')
@@ -262,10 +278,10 @@ func writeSample(w io.Writer, name string, labels [][2]string, value float64) {
 // maxLabelLen bounds label values that come from upstream data.
 const maxLabelLen = 64
 
-// escapeLabel escapes a label value per the text exposition format and
+// EscapeLabel escapes a label value per the text exposition format and
 // truncates it, since the flag name comes from ANEEL and must not be able to
 // break out of the label or bloat the series.
-func escapeLabel(s string) string {
+func EscapeLabel(s string) string {
 	if r := []rune(s); len(r) > maxLabelLen {
 		s = string(r[:maxLabelLen])
 	}

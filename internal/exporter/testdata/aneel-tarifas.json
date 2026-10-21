@@ -1,0 +1,259 @@
+{
+ "help": "https://dadosabertos.aneel.gov.br/api/3/action/help_show?name=datastore_search",
+ "success": true,
+ "result": {
+  "filters": {
+   "SigAgente": "CELESC",
+   "DscSubGrupo": "B1",
+   "DscClasse": "Residencial",
+   "DscSubClasse": "Residencial",
+   "DscModalidadeTarifaria": "Convencional",
+   "DscBaseTarifaria": "Tarifa de Aplicação",
+   "DscDetalhe": "Não se aplica"
+  },
+  "include_next_page": false,
+  "include_total": true,
+  "limit": 50,
+  "records_format": "objects",
+  "resource_id": "fcf2906c-7c32-4b9b-a637-054e7a5234f4",
+  "sort": "DatInicioVigencia desc",
+  "filterops": {
+   "op": "$and",
+   "field": null,
+   "value": [
+    {
+     "op": "eq",
+     "field": "SigAgente",
+     "value": "CELESC"
+    },
+    {
+     "op": "eq",
+     "field": "DscSubGrupo",
+     "value": "B1"
+    },
+    {
+     "op": "eq",
+     "field": "DscClasse",
+     "value": "Residencial"
+    },
+    {
+     "op": "eq",
+     "field": "DscSubClasse",
+     "value": "Residencial"
+    },
+    {
+     "op": "eq",
+     "field": "DscModalidadeTarifaria",
+     "value": "Convencional"
+    },
+    {
+     "op": "eq",
+     "field": "DscBaseTarifaria",
+     "value": "Tarifa de Aplicação"
+    },
+    {
+     "op": "eq",
+     "field": "DscDetalhe",
+     "value": "Não se aplica"
+    }
+   ]
+  },
+  "records": [
+   {
+    "_id": 638799,
+    "DatGeracaoConjuntoDados": "2026-10-21",
+    "DscREH": "RESOLUÇÃO HOMOLOGATÓRIA Nº 3.602, DE 21 DE AGOSTO DE 2026",
+    "SigAgente": "CELESC",
+    "NumCNPJDistribuidora": "08336783000190",
+    "DatInicioVigencia": "2026-08-22",
+    "DatFimVigencia": "2027-08-21",
+    "DscBaseTarifaria": "Tarifa de Aplicação",
+    "DscSubGrupo": "B1",
+    "DscModalidadeTarifaria": "Convencional",
+    "DscClasse": "Residencial",
+    "DscSubClasse": "Residencial",
+    "DscDetalhe": "Não se aplica",
+    "NomPostoTarifario": "Não se aplica",
+    "DscUnidadeTerciaria": "MWh",
+    "SigAgenteAcessante": "Não se aplica",
+    "VlrTUSD": "414,04",
+    "VlrTE": "345,71"
+   },
+   {
+    "_id": 638805,
+    "DatGeracaoConjuntoDados": "2026-10-21",
+    "DscREH": "RESOLUÇÃO HOMOLOGATÓRIA Nº 3.602, DE 21 DE AGOSTO DE 2026",
+    "SigAgente": "CELESC",
+    "NumCNPJDistribuidora": "08336783000190",
+    "DatInicioVigencia": "2026-08-22",
+    "DatFimVigencia": "2027-08-21",
+    "DscBaseTarifaria": "Tarifa de Aplicação",
+    "DscSubGrupo": "B1",
+    "DscModalidadeTarifaria": "Convencional",
+    "DscClasse": "Residencial",
+    "DscSubClasse": "Residencial",
+    "DscDetalhe": "Não se aplica",
+    "NomPostoTarifario": "Não se aplica",
+    "DscUnidadeTerciaria": "MWh",
+    "SigAgenteAcessante": "Não se aplica",
+    "VlrTUSD": "414,04",
+    "VlrTE": "345,71"
+   },
+   {
+    "_id": 568534,
+    "DatGeracaoConjuntoDados": "2026-10-21",
+    "DscREH": "RESOLUÇÃO HOMOLOGATÓRIA Nº 3.511, DE 19 DE AGOSTO DE 2025",
+    "SigAgente": "CELESC",
+    "NumCNPJDistribuidora": "08336783000190",
+    "DatInicioVigencia": "2026-01-01",
+    "DatFimVigencia": "2026-08-21",
+    "DscBaseTarifaria": "Tarifa de Aplicação",
+    "DscSubGrupo": "B1",
+    "DscModalidadeTarifaria": "Convencional",
+    "DscClasse": "Residencial",
+    "DscSubClasse": "Residencial",
+    "DscDetalhe": "Não se aplica",
+    "NomPostoTarifario": "Não se aplica",
+    "DscUnidadeTerciaria": "MWh",
+    "SigAgenteAcessante": "Não se aplica",
+    "VlrTUSD": "373,75",
+    "VlrTE": "321,93"
+   },
+   {
+    "_id": 568535,
+    "DatGeracaoConjuntoDados": "2026-10-21",
+    "DscREH": "RESOLUÇÃO HOMOLOGATÓRIA Nº 3.511, DE 19 DE AGOSTO DE 2025",
+    "SigAgente": "CELESC",
+    "NumCNPJDistribuidora": "08336783000190",
+    "DatInicioVigencia": "2026-01-01",
+    "DatFimVigencia": "2026-08-21",
+    "DscBaseTarifaria": "Tarifa de Aplicação",
+    "DscSubGrupo": "B1",
+    "DscModalidadeTarifaria": "Convencional",
+    "DscClasse": "Residencial",
+    "DscSubClasse": "Residencial",
+    "DscDetalhe": "Não se aplica",
+    "NomPostoTarifario": "Não se aplica",
+    "DscUnidadeTerciaria": "MWh",
+    "SigAgenteAcessante": "Não se aplica",
+    "VlrTUSD": "373,75",
+    "VlrTE": "321,93"
+   },
+   {
+    "_id": 544206,
+    "DatGeracaoConjuntoDados": "2026-10-21",
+    "DscREH": "RESOLUÇÃO HOMOLOGATÓRIA Nº 3.511, DE 19 DE AGOSTO DE 2025",
+    "SigAgente": "CELESC",
+    "NumCNPJDistribuidora": "08336783000190",
+    "DatInicioVigencia": "2025-08-22",
+    "DatFimVigencia": "2025-12-31",
+    "DscBaseTarifaria": "Tarifa de Aplicação",
+    "DscSubGrupo": "B1",
+    "DscModalidadeTarifaria": "Convencional",
+    "DscClasse": "Residencial",
+    "DscSubClasse": "Residencial",
+    "DscDetalhe": "Não se aplica",
+    "NomPostoTarifario": "Não se aplica",
+    "DscUnidadeTerciaria": "MWh",
+    "SigAgenteAcessante": "Não se aplica",
+    "VlrTUSD": "373,75",
+    "VlrTE": "321,93"
+   },
+   {
+    "_id": 544200,
+    "DatGeracaoConjuntoDados": "2026-10-21",
+    "DscREH": "RESOLUÇÃO HOMOLOGATÓRIA Nº 3.511, DE 19 DE AGOSTO DE 2025",
+    "SigAgente": "CELESC",
+    "NumCNPJDistribuidora": "08336783000190",
+    "DatInicioVigencia": "2025-08-22",
+    "DatFimVigencia": "2025-12-31",
+    "DscBaseTarifaria": "Tarifa de Aplicação",
+    "DscSubGrupo": "B1",
+    "DscModalidadeTarifaria": "Convencional",
+    "DscClasse": "Residencial",
+    "DscSubClasse": "Residencial",
+    "DscDetalhe": "Não se aplica",
+    "NomPostoTarifario": "Não se aplica",
+    "DscUnidadeTerciaria": "MWh",
+    "SigAgenteAcessante": "Não se aplica",
+    "VlrTUSD": "373,75",
+    "VlrTE": "321,93"
+   }
+  ],
+  "fields": [
+   {
+    "id": "_id",
+    "type": "int"
+   },
+   {
+    "id": "DatGeracaoConjuntoDados",
+    "type": "text"
+   },
+   {
+    "id": "DscREH",
+    "type": "text"
+   },
+   {
+    "id": "SigAgente",
+    "type": "text"
+   },
+   {
+    "id": "NumCNPJDistribuidora",
+    "type": "text"
+   },
+   {
+    "id": "DatInicioVigencia",
+    "type": "text"
+   },
+   {
+    "id": "DatFimVigencia",
+    "type": "text"
+   },
+   {
+    "id": "DscBaseTarifaria",
+    "type": "text"
+   },
+   {
+    "id": "DscSubGrupo",
+    "type": "text"
+   },
+   {
+    "id": "DscModalidadeTarifaria",
+    "type": "text"
+   },
+   {
+    "id": "DscClasse",
+    "type": "text"
+   },
+   {
+    "id": "DscSubClasse",
+    "type": "text"
+   },
+   {
+    "id": "DscDetalhe",
+    "type": "text"
+   },
+   {
+    "id": "NomPostoTarifario",
+    "type": "text"
+   },
+   {
+    "id": "DscUnidadeTerciaria",
+    "type": "text"
+   },
+   {
+    "id": "SigAgenteAcessante",
+    "type": "text"
+   },
+   {
+    "id": "VlrTUSD",
+    "type": "text"
+   },
+   {
+    "id": "VlrTE",
+    "type": "text"
+   }
+  ],
+  "total": 42
+ }
+}

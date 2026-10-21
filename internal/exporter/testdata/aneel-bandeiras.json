@@ -1,0 +1,79 @@
+{
+ "help": "https://dadosabertos.aneel.gov.br/api/3/action/help_show?name=datastore_search",
+ "success": true,
+ "result": {
+  "include_next_page": false,
+  "include_total": true,
+  "limit": 6,
+  "records_format": "objects",
+  "resource_id": "0591b8f6-fe54-437b-b72b-1aa2efd46e42",
+  "sort": "DatCompetencia desc",
+  "records": [
+   {
+    "_id": 142,
+    "DatGeracaoConjuntoDados": "2026-10-19",
+    "DatCompetencia": "2026-10-01",
+    "NomBandeiraAcionada": "Verde",
+    "VlrAdicionalBandeira": ",00"
+   },
+   {
+    "_id": 141,
+    "DatGeracaoConjuntoDados": "2026-10-19",
+    "DatCompetencia": "2026-09-01",
+    "NomBandeiraAcionada": "Amarela",
+    "VlrAdicionalBandeira": "18,85"
+   },
+   {
+    "_id": 140,
+    "DatGeracaoConjuntoDados": "2026-10-19",
+    "DatCompetencia": "2026-08-01",
+    "NomBandeiraAcionada": "Amarela",
+    "VlrAdicionalBandeira": "18,85"
+   },
+   {
+    "_id": 139,
+    "DatGeracaoConjuntoDados": "2026-10-19",
+    "DatCompetencia": "2026-07-01",
+    "NomBandeiraAcionada": "Amarela",
+    "VlrAdicionalBandeira": "18,85"
+   },
+   {
+    "_id": 138,
+    "DatGeracaoConjuntoDados": "2026-10-19",
+    "DatCompetencia": "2026-06-01",
+    "NomBandeiraAcionada": "Amarela",
+    "VlrAdicionalBandeira": "18,85"
+   },
+   {
+    "_id": 137,
+    "DatGeracaoConjuntoDados": "2026-10-19",
+    "DatCompetencia": "2026-05-01",
+    "NomBandeiraAcionada": "Amarela",
+    "VlrAdicionalBandeira": "18,85"
+   }
+  ],
+  "fields": [
+   {
+    "id": "_id",
+    "type": "int"
+   },
+   {
+    "id": "DatGeracaoConjuntoDados",
+    "type": "text"
+   },
+   {
+    "id": "DatCompetencia",
+    "type": "text"
+   },
+   {
+    "id": "NomBandeiraAcionada",
+    "type": "text"
+   },
+   {
+    "id": "VlrAdicionalBandeira",
+    "type": "text"
+   }
+  ],
+  "total": 142
+ }
+}

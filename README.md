@@ -75,6 +75,35 @@ sum(sum_over_time((sum(tapo_power_watts) / 1000
   * on() group_left energia_tarifa_final_reais_kwh)[$__range:1m])) / 60
 ```
 
+### Grafana dashboard
+
+![Dashboard](assets/dashboard.jpg)
+
+[`grafana/dashboard.json`](grafana/dashboard.json) can be imported in Grafana (Dashboards → New → Import) and asks for the Prometheus data source. It shows the current price, flag, taxes and source health, the price and its composition over time, the rates and a monthly flag timeline. A collapsed row prices the [Tapo P110 exporter](https://github.com/MateuxLucax/tapo-p110-prometheus-exporter)'s power readings (cost per hour, cost over the range, 30-day projection); it stays empty without that exporter.
+
+## Backfilling past prices
+
+Prometheus only has what it scraped, so a power history recorded before the exporter existed has no price to join against. The `backfill` subcommand reads the whole ANEEL and Celesc history once and writes the same metrics for a past period as OpenMetrics, for `promtool`:
+
+```bash
+# Same .env as the exporter, so ICMS and the tariff filter match.
+# -to: when the live exporter started scraping, so the two don't overlap.
+docker run --rm --env-file .env -v "$PWD:/out" ghcr.io/mateuxlucax/energia-tarifa-exporter:latest \
+  backfill -from 2025-10-21 -to 2026-10-21T12:00:00-03:00 -o /out/energia.om
+
+# Turn it into TSDB blocks (monthly blocks; promtool's 2h default makes thousands)
+docker run --rm -v "$PWD:/out" --entrypoint promtool prom/prometheus:latest \
+  tsdb create-blocks-from openmetrics --max-block-duration=744h /out/energia.om /out/blocks
+
+# Move the blocks into Prometheus' data directory; it picks them up on its own
+# (or on restart) and compacts them with the rest.
+mv blocks/* /path/to/prometheus/data/
+```
+
+`-job` and `-instance` (default `energia` and `energia-tarifa-exporter:3000`) should match the scrape config so the backfilled and live series line up. Samples are written every `-step` (default 2m, at most 4m) so queries that join against them stay inside Prometheus' 5-minute lookback; one year is about 2.1M samples (~230 MB of text, ~1.5 MB of blocks, about 20 s in promtool).
+
+Each day is priced with the tariff, flag and PIS/COFINS of that day's month. ICMS comes from `ICMS_PERCENT`, so periods with another rate (SC charged 25% before 07/2022) need separate runs. Days whose month isn't published yet are skipped, never priced with another month's numbers. The Celesc table goes back to 01/2019 and the flags to 2015.
+
 ## Security
 
 - Standard library only: no third-party Go modules.
