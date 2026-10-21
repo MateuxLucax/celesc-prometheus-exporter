@@ -1,0 +1,17 @@
+# Easy replication: pulls the prebuilt image published to GHCR on merge to main.
+#   cp .env.example .env && docker compose up -d
+# To build from source instead, use docker-compose.build.yml.
+services:
+  energia-tarifa-exporter:
+    image: ghcr.io/mateuxlucax/energia-tarifa-exporter:latest
+    container_name: energia-tarifa-exporter
+    env_file: .env
+    ports:
+      # /metrics is unauthenticated, so bind to loopback by default. To let a
+      # remote Prometheus scrape it, change this to "3000:3000" and put it
+      # behind trusted network controls (firewall / reverse proxy).
+      - "127.0.0.1:3000:3000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    restart: unless-stopped
