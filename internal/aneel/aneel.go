@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"time"
@@ -169,7 +170,7 @@ func pickTarifa(recs []tarifaRecord, now time.Time) (Tarifa, error) {
 		if err1 != nil || err2 != nil {
 			continue
 		}
-		t := Tarifa{TE: te / 1000, TUSD: tusd / 1000, InicioVigencia: inicio, FimVigencia: fim, Resolucao: r.DscREH}
+		t := Tarifa{TE: perKWh(te), TUSD: perKWh(tusd), InicioVigencia: inicio, FimVigencia: fim, Resolucao: r.DscREH}
 		if !fim.Before(day) {
 			return t, validTarifa(t)
 		}
@@ -224,7 +225,7 @@ func pickBandeira(recs []bandeiraRecord, now time.Time) (Bandeira, error) {
 		if err != nil || v < 0 || v > 1000 {
 			continue
 		}
-		b := Bandeira{Nome: r.NomBandeiraAcionada, Adicional: v / 1000, Competencia: comp}
+		b := Bandeira{Nome: r.NomBandeiraAcionada, Adicional: perKWh(v), Competencia: comp}
 		if best == nil || b.Competencia.After(best.Competencia) {
 			best = &b
 		}
@@ -233,6 +234,12 @@ func pickBandeira(recs []bandeiraRecord, now time.Time) (Bandeira, error) {
 		return Bandeira{}, errors.New("no ANEEL bandeira row for this or an earlier month")
 	}
 	return *best, nil
+}
+
+// perKWh converts R$/MWh, published with two decimals, to R$/kWh without the
+// float noise of a plain division (345.71/1000 = 0.34570999999999996).
+func perKWh(mwh float64) float64 {
+	return math.Round(mwh*100) / 100000
 }
 
 // dateOf drops the clock, keeping the calendar day of t in t's location.

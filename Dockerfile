@@ -1,5 +1,6 @@
-# Build a static binary, then ship it on distroless.
-FROM golang:1.26-bookworm AS build
+# Build a static binary, then ship it on distroless. Base images are pinned by
+# digest; Dependabot bumps them.
+FROM golang:1.26-bookworm@sha256:fe3da92a5cb2881e4aa75e625cb0b7c50571632fb4cf340cbe53e6ccdcffdd51 AS build
 
 WORKDIR /src
 
@@ -9,7 +10,7 @@ COPY go.mod ./
 COPY . .
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/exporter .
 
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM gcr.io/distroless/static-debian12:nonroot@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab
 
 COPY --from=build /out/exporter /exporter
 

@@ -26,4 +26,4 @@ go run .                      # run locally on :3000 against the real sources
 
 ## Deployment
 
-Pushes to `main` build and publish `ghcr.io/mateuxlucax/energia-tarifa-exporter` via `.github/workflows/docker-publish.yml`; `test.yml` runs gofmt/vet/tests.
+Pushes to `main` build and publish `ghcr.io/mateuxlucax/energia-tarifa-exporter` via `.github/workflows/ci.yml`, only after gofmt/vet/tests pass. Actions and base images are pinned (SHA / digest) and bumped by Dependabot.
