@@ -43,14 +43,23 @@ func NewClient() *Client {
 // Aliquotas returns the rates of now's month, or of the latest month published
 // before it.
 func (c *Client) Aliquotas(ctx context.Context, now time.Time) (Aliquotas, error) {
-	body, err := c.Page(ctx)
+	h, err := c.History(ctx)
 	if err != nil {
 		return Aliquotas{}, err
 	}
-	return Parse(body, now)
+	return h.At(now)
 }
 
-// Page fetches the raw tariff page, for callers that Parse it for many dates.
+// History fetches the page and parses every month of the table.
+func (c *Client) History(ctx context.Context) (History, error) {
+	body, err := c.Page(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAll(body)
+}
+
+// Page fetches the raw tariff page.
 func (c *Client) Page(ctx context.Context) ([]byte, error) {
 	u, err := url.Parse(c.URL)
 	if err != nil {
@@ -60,23 +69,23 @@ func (c *Client) Page(ctx context.Context) ([]byte, error) {
 }
 
 // rowRe matches one table row: <td>MM/YYYY</td><td>x,xx%</td><td>y,yy%</td>,
-// tolerating attributes and whitespace. It only ever captures digits, commas
-// and dots, so nothing from the page reaches the metrics except numbers.
-var rowRe = regexp.MustCompile(`(?s)<td[^>]*>\s*(\d{2})/(\d{4})\s*</td>\s*<td[^>]*>\s*([\d.,]+)\s*%\s*</td>\s*<td[^>]*>\s*([\d.,]+)\s*%\s*</td>`)
+// tolerating attributes, whitespace and the &nbsp; the page sometimes leaves
+// next to a value. It only ever captures digits, commas and dots, so nothing
+// from the page reaches the metrics except numbers.
+var rowRe = regexp.MustCompile(`(?s)<td[^>]*>` + sp + `(\d{2})/(\d{4})` + sp + `</td>\s*<td[^>]*>` + sp + `([\d.,]+)` + sp + `%` + sp + `</td>\s*<td[^>]*>` + sp + `([\d.,]+)` + sp + `%` + sp + `</td>`)
 
-// Parse extracts the rates for now's month (or the latest earlier one) from the
-// page HTML.
-func Parse(page []byte, now time.Time) (Aliquotas, error) {
-	month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
-	var best *Aliquotas
+const sp = `(?:\s|&nbsp;)*`
+
+// History is every month of the table, in page order.
+type History []Aliquotas
+
+// ParseAll extracts every month of the table from the page HTML.
+func ParseAll(page []byte) (History, error) {
+	var h History
 	for _, m := range rowRe.FindAllSubmatch(page, -1) {
 		mm, _ := strconv.Atoi(string(m[1]))
 		yyyy, _ := strconv.Atoi(string(m[2]))
 		if mm < 1 || mm > 12 {
-			continue
-		}
-		ref := time.Date(yyyy, time.Month(mm), 1, 0, 0, 0, 0, time.UTC)
-		if ref.After(month) {
 			continue
 		}
 		pis, err1 := fetch.ParseBR(string(m[3]))
@@ -84,13 +93,39 @@ func Parse(page []byte, now time.Time) (Aliquotas, error) {
 		if err1 != nil || err2 != nil {
 			continue
 		}
-		a := Aliquotas{PIS: pis, COFINS: cofins, Referencia: ref}
-		if best == nil || a.Referencia.After(best.Referencia) {
-			best = &a
+		h = append(h, Aliquotas{PIS: pis, COFINS: cofins, Referencia: time.Date(yyyy, time.Month(mm), 1, 0, 0, 0, 0, time.UTC)})
+	}
+	if len(h) == 0 {
+		return nil, errors.New("PIS/COFINS table not found on the Celesc page")
+	}
+	return h, nil
+}
+
+// Parse extracts the rates for now's month (or the latest earlier one) from the
+// page HTML.
+func Parse(page []byte, now time.Time) (Aliquotas, error) {
+	h, err := ParseAll(page)
+	if err != nil {
+		return Aliquotas{}, err
+	}
+	return h.At(now)
+}
+
+// At returns the rates of now's month, or of the latest month published before
+// it.
+func (h History) At(now time.Time) (Aliquotas, error) {
+	month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	var best *Aliquotas
+	for i := range h {
+		if h[i].Referencia.After(month) {
+			continue
+		}
+		if best == nil || h[i].Referencia.After(best.Referencia) {
+			best = &h[i]
 		}
 	}
 	if best == nil {
-		return Aliquotas{}, errors.New("PIS/COFINS table not found on the Celesc page")
+		return Aliquotas{}, errors.New("no PIS/COFINS for this or an earlier month on the Celesc page")
 	}
 	// The nominal non-cumulative rates are 1.65% and 7.6%; the effective rate
 	// is lower after credits. Anything outside that means the page changed.

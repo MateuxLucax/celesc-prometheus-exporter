@@ -31,9 +31,10 @@ const MaxStep = 4 * time.Minute
 type Inputs struct {
 	Tarifas   aneel.TarifaHistory
 	Bandeiras aneel.BandeiraHistory
-	// CelescPage is the raw tariff page; nil means PIS/COFINS come from Config.
-	CelescPage []byte
-	Config     exporter.Config
+	// Aliquotas is the Celesc PIS/COFINS table; nil means PIS/COFINS come from
+	// Config.
+	Aliquotas celesc.History
+	Config    exporter.Config
 }
 
 // Options shape the output.
@@ -53,6 +54,7 @@ type Report struct {
 
 type day struct {
 	start  time.Time          // midnight in Config.Location
+	end    time.Time          // the next day's start
 	values map[string]float64 // series key (name + labels) → value
 }
 
@@ -74,14 +76,18 @@ func Write(w io.Writer, in Inputs, opt Options) (Report, error) {
 	var rep Report
 	var days []day
 	f := opt.From.In(loc)
-	for d := time.Date(f.Year(), f.Month(), f.Day(), 0, 0, 0, 0, loc); d.Before(opt.To); d = d.AddDate(0, 0, 1) {
+	for i := 0; ; i++ {
+		d := midnight(f.Year(), f.Month(), f.Day()+i, loc)
+		if !d.Before(opt.To) {
+			break
+		}
 		rep.Days++
 		v, ok := resolve(in, d)
 		if !ok {
 			rep.SkippedDays++
 			continue
 		}
-		v.start = d
+		v.start, v.end = d, midnight(f.Year(), f.Month(), f.Day()+i+1, loc)
 		days = append(days, v)
 	}
 	if len(days) == 0 {
@@ -119,15 +125,12 @@ func Write(w io.Writer, in Inputs, opt Options) (Report, error) {
 		if labels == "" && extra == "" {
 			series = name
 		}
-		for i, d := range days {
+		for _, d := range days {
 			v, ok := d.values[key]
 			if !ok {
 				continue
 			}
-			end := d.start.AddDate(0, 0, 1)
-			if i+1 < len(days) && days[i+1].start.Before(end) {
-				end = days[i+1].start
-			}
+			end := d.end
 			if end.After(opt.To) {
 				end = opt.To
 			}
@@ -146,27 +149,25 @@ func Write(w io.Writer, in Inputs, opt Options) (Report, error) {
 }
 
 // resolve computes one day's values, or ok=false if any input is missing.
+// The histories' At falls back to the latest earlier row, which is right for
+// the live exporter but would price old days with whatever came before, so
+// each input must be the one of that exact day or month.
 func resolve(in Inputs, d time.Time) (day, bool) {
 	// Pick at noon so a timezone offset can never move the date.
 	noon := d.Add(12 * time.Hour)
+	date := time.Date(noon.Year(), noon.Month(), noon.Day(), 0, 0, 0, 0, time.UTC)
 	t, err := in.Tarifas.At(noon)
-	if err != nil {
+	if err != nil || t.InicioVigencia.After(date) || t.FimVigencia.Before(date) {
 		return day{}, false
 	}
 	b, err := in.Bandeiras.At(noon)
-	if err != nil {
+	if err != nil || !sameMonth(b.Competencia, noon) {
 		return day{}, false
 	}
 	pis, cofins := in.Config.ManualPIS, in.Config.ManualCOFINS
-	if in.CelescPage != nil {
-		a, err := celesc.Parse(in.CelescPage, noon)
-		if err != nil {
-			return day{}, false
-		}
-		// Parse falls back to the latest earlier month; for history that
-		// would price old months with whatever came before, so require the
-		// exact month.
-		if a.Referencia.Year() != noon.Year() || a.Referencia.Month() != noon.Month() {
+	if in.Aliquotas != nil {
+		a, err := in.Aliquotas.At(noon)
+		if err != nil || !sameMonth(a.Referencia, noon) {
 			return day{}, false
 		}
 		pis, cofins = a.PIS, a.COFINS
@@ -184,6 +185,22 @@ func resolve(in Inputs, d time.Time) (day, bool) {
 			`energia_tarifa_final_reais_kwh`:                                         exporter.Final(t.TE+t.TUSD+b.Adicional, icms, pis, cofins),
 		},
 	}, true
+}
+
+// midnight returns the start of a date in loc (day may overflow the month).
+// Where DST skips midnight (Brazil before 2019), Go would resolve 00:00 to
+// 23:00 of the previous day, so the day starts at 01:00 instead.
+func midnight(year int, month time.Month, day int, loc *time.Location) time.Time {
+	want := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	t := time.Date(year, month, day, 0, 0, 0, 0, loc)
+	if t.Day() != want.Day() {
+		t = time.Date(year, month, day, 1, 0, 0, 0, loc)
+	}
+	return t
+}
+
+func sameMonth(a, b time.Time) bool {
+	return a.Year() == b.Year() && a.Month() == b.Month()
 }
 
 // splitKey turns `name{a="b"}` into ("name", `a="b"`).

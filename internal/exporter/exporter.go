@@ -1,8 +1,8 @@
 // Package exporter turns the upstream tariff data into Prometheus metrics. It
 // refreshes every source in the background on an interval, keeps the last good
-// value of each one, and serves the cached snapshot on every scrape — ANEEL
+// history of each one, and picks the values in force at scrape time — ANEEL
 // and Celesc are slow and change at most monthly, so scrapes never wait on
-// them.
+// them, and a month or reajuste that starts between refreshes shows up at once.
 //
 // Like the rest of the module it depends only on the standard library and
 // writes the Prometheus text exposition format directly.
@@ -26,12 +26,18 @@ import (
 // DefaultRefreshTimeout bounds one refresh of all sources.
 const DefaultRefreshTimeout = 2 * time.Minute
 
-// Sources is what a refresh reads from. *aneel.Client and *celesc.Client
-// satisfy the two halves; tests use fakes.
+// History picks the value in force at a given time. aneel.TarifaHistory,
+// aneel.BandeiraHistory and celesc.History implement it.
+type History[T any] interface {
+	At(now time.Time) (T, error)
+}
+
+// Sources is what a refresh reads from: each returns the whole published
+// history, so the value in force can be picked at scrape time. Tests use fakes.
 type Sources struct {
-	Tarifa    func(ctx context.Context, now time.Time) (aneel.Tarifa, error)
-	Bandeira  func(ctx context.Context, now time.Time) (aneel.Bandeira, error)
-	Aliquotas func(ctx context.Context, now time.Time) (celesc.Aliquotas, error) // nil when PIS/COFINS are manual
+	Tarifas   func(ctx context.Context) (History[aneel.Tarifa], error)
+	Bandeiras func(ctx context.Context) (History[aneel.Bandeira], error)
+	Aliquotas func(ctx context.Context) (History[celesc.Aliquotas], error) // nil when PIS/COFINS are manual
 }
 
 // Config holds the values that don't come from any upstream.
@@ -47,21 +53,39 @@ type Config struct {
 }
 
 type source[T any] struct {
-	value       T
-	ok          bool    // a value was fetched at least once
+	history     History[T]
+	ok          bool    // a history was fetched at least once
 	attempted   bool    // a refresh has finished at least once
 	success     float64 // 1 if the last attempt succeeded
 	lastSuccess float64 // unix seconds
 }
 
-func (s *source[T]) update(v T, err error, now time.Time) error {
+// update stores h unless the fetch failed or h has nothing usable for now, so
+// a format change upstream shows up as a failed refresh, not a wrong price.
+func (s *source[T]) update(h History[T], err error, now time.Time) error {
 	s.attempted = true
+	if err == nil {
+		_, err = h.At(now)
+	}
 	if err != nil {
 		s.success = 0
 		return err
 	}
-	s.value, s.ok, s.success, s.lastSuccess = v, true, 1, float64(now.Unix())
+	s.history, s.ok, s.success, s.lastSuccess = h, true, 1, float64(now.Unix())
 	return nil
+}
+
+// at returns the value in force at now, if a history is known and has one.
+func (s *source[T]) at(now time.Time) (T, bool) {
+	var zero T
+	if !s.ok {
+		return zero, false
+	}
+	v, err := s.history.At(now)
+	if err != nil {
+		return zero, false
+	}
+	return v, true
 }
 
 // Exporter caches the latest data and serves it as Prometheus metrics. It
@@ -101,13 +125,21 @@ func (e *Exporter) Refresh(ctx context.Context) error {
 	defer cancel()
 	now := e.Now().In(e.cfg.Location)
 
-	t, tErr := e.src.Tarifa(ctx, now)
-	b, bErr := e.src.Bandeira(ctx, now)
-	var a celesc.Aliquotas
-	var aErr error
+	// The sources are independent, so a slow one doesn't eat into the
+	// others' share of the timeout.
+	var (
+		wg               sync.WaitGroup
+		t                History[aneel.Tarifa]
+		b                History[aneel.Bandeira]
+		a                History[celesc.Aliquotas]
+		tErr, bErr, aErr error
+	)
+	wg.Go(func() { t, tErr = e.src.Tarifas(ctx) })
+	wg.Go(func() { b, bErr = e.src.Bandeiras(ctx) })
 	if e.src.Aliquotas != nil {
-		a, aErr = e.src.Aliquotas(ctx, now)
+		wg.Go(func() { a, aErr = e.src.Aliquotas(ctx) })
 	}
+	wg.Wait()
 
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -151,39 +183,40 @@ func (e *Exporter) refreshAndLog(ctx context.Context) {
 	}
 }
 
-// pisCofins returns the rates in use and whether they are known.
-func (e *Exporter) pisCofins() (pis, cofins float64, ok bool) {
-	if e.src.Aliquotas == nil {
-		return e.cfg.ManualPIS, e.cfg.ManualCOFINS, true
-	}
-	return e.aliquotas.value.PIS, e.aliquotas.value.COFINS, e.aliquotas.ok
-}
-
-// ServeHTTP writes the cached metrics in the Prometheus text exposition format.
-// Price metrics are left out until every input they need has been fetched
-// once, so a cold start never exports a price computed from zeros.
+// ServeHTTP writes the metrics in force now in the Prometheus text exposition
+// format. Price metrics are left out until every input they need is known, so
+// a cold start never exports a price computed from zeros.
 func (e *Exporter) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 
-	pis, cofins, taxesOK := e.pisCofins()
+	now := e.Now().In(e.cfg.Location)
+	t, tarifaOK := e.tarifa.at(now)
+	b, bandeiraOK := e.bandeira.at(now)
+	a, aliquotasOK := e.aliquotas.at(now)
+	pis, cofins, taxesOK := a.PIS, a.COFINS, aliquotasOK
+	if e.src.Aliquotas == nil {
+		pis, cofins, taxesOK = e.cfg.ManualPIS, e.cfg.ManualCOFINS, true
+	}
 
-	if e.tarifa.ok {
-		t := e.tarifa.value
+	if tarifaOK || bandeiraOK {
 		writeHeader(w, "energia_tarifa_reais_kwh", "Tariff component in R$/kWh, without taxes")
+	}
+	if tarifaOK {
 		writeSample(w, "energia_tarifa_reais_kwh", [][2]string{{"componente", "te"}}, t.TE)
 		writeSample(w, "energia_tarifa_reais_kwh", [][2]string{{"componente", "tusd"}}, t.TUSD)
-		if e.bandeira.ok {
-			writeSample(w, "energia_tarifa_reais_kwh", [][2]string{{"componente", "bandeira"}}, e.bandeira.value.Adicional)
-		}
+	}
+	if bandeiraOK {
+		writeSample(w, "energia_tarifa_reais_kwh", [][2]string{{"componente", "bandeira"}}, b.Adicional)
+	}
+	if tarifaOK {
 		writeGauge(w, "energia_tarifa_vigencia_inicio_timestamp_seconds", "Start of the tariff's validity (Unix seconds)", float64(t.InicioVigencia.Unix()))
 		writeGauge(w, "energia_tarifa_vigencia_fim_timestamp_seconds", "End of the tariff's validity (Unix seconds)", float64(t.FimVigencia.Unix()))
 	}
 
-	if e.bandeira.ok {
-		b := e.bandeira.value
+	if bandeiraOK {
 		writeHeader(w, "energia_bandeira_info", "Tariff flag in force; the value is always 1")
 		writeSample(w, "energia_bandeira_info", [][2]string{{"bandeira", b.Nome}}, 1)
 		writeGauge(w, "energia_bandeira_competencia_timestamp_seconds", "Month the flag refers to (Unix seconds)", float64(b.Competencia.Unix()))
@@ -195,13 +228,12 @@ func (e *Exporter) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 		writeSample(w, "energia_imposto_ratio", [][2]string{{"imposto", "pis"}}, pis/100)
 		writeSample(w, "energia_imposto_ratio", [][2]string{{"imposto", "cofins"}}, cofins/100)
 	}
-	if e.src.Aliquotas != nil && e.aliquotas.ok {
-		writeGauge(w, "energia_pis_cofins_referencia_timestamp_seconds", "Month the PIS/COFINS rates refer to (Unix seconds)", float64(e.aliquotas.value.Referencia.Unix()))
+	if aliquotasOK {
+		writeGauge(w, "energia_pis_cofins_referencia_timestamp_seconds", "Month the PIS/COFINS rates refer to (Unix seconds)", float64(a.Referencia.Unix()))
 	}
 
-	if e.tarifa.ok && e.bandeira.ok && taxesOK {
-		base := e.tarifa.value.TE + e.tarifa.value.TUSD + e.bandeira.value.Adicional
-		writeGauge(w, "energia_tarifa_final_reais_kwh", "Price per kWh with flag and taxes (ICMS, PIS, COFINS), in R$", Final(base, e.cfg.ICMSPercent, pis, cofins))
+	if tarifaOK && bandeiraOK && taxesOK {
+		writeGauge(w, "energia_tarifa_final_reais_kwh", "Price per kWh with flag and taxes (ICMS, PIS, COFINS), in R$", Final(t.TE+t.TUSD+b.Adicional, e.cfg.ICMSPercent, pis, cofins))
 	}
 
 	if e.cfg.COSIPReaisMes > 0 {

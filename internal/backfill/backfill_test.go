@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/celesc"
 	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/exporter"
 )
 
@@ -39,7 +40,10 @@ func fixtures(t *testing.T) Inputs {
 	if err := json.Unmarshal(ban.Result.Records, &in.Bandeiras); err != nil {
 		t.Fatal(err)
 	}
-	in.CelescPage = read("celesc-tributos.html")
+	var err error
+	if in.Aliquotas, err = celesc.ParseAll(read("celesc-tributos.html")); err != nil {
+		t.Fatal(err)
+	}
 	in.Config = exporter.Config{ICMSPercent: 17, Location: time.UTC}
 	return in
 }
@@ -142,6 +146,68 @@ func TestWriteRejects(t *testing.T) {
 	} {
 		if _, err := Write(&bytes.Buffer{}, in, opt); err == nil {
 			t.Errorf("%s: want error", name)
+		}
+	}
+}
+
+func TestWriteRequiresFlagOfTheMonth(t *testing.T) {
+	// Manual PIS/COFINS, so only the flag decides: November isn't published
+	// in the fixture and must be skipped, not priced with October's flag.
+	in := fixtures(t)
+	in.Aliquotas = nil
+	in.Config.ManualPIS, in.Config.ManualCOFINS = 0.27, 1.27
+	rep, err := Write(&bytes.Buffer{}, in, Options{
+		From: time.Date(2026, 10, 31, 0, 0, 0, 0, time.UTC), To: time.Date(2026, 11, 2, 0, 0, 0, 0, time.UTC), Step: 4 * time.Minute,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep.Days != 2 || rep.SkippedDays != 1 {
+		t.Fatalf("report %+v", rep)
+	}
+}
+
+func TestWriteAcrossMissingMidnight(t *testing.T) {
+	// Chile's DST starts at 24:00 on 2026-09-05, so 2026-09-06 00:00 doesn't
+	// exist there. Later days must still start at midnight: October's
+	// PIS/COFINS apply from 01/10 00:00, not an hour early or late.
+	loc, err := time.LoadLocation("America/Santiago")
+	if err != nil {
+		t.Skip(err)
+	}
+	in := fixtures(t)
+	in.Config.Location = loc
+	var buf bytes.Buffer
+	if _, err := Write(&buf, in, Options{
+		From: time.Date(2026, 9, 5, 0, 0, 0, 0, loc), To: time.Date(2026, 10, 2, 0, 0, 0, 0, loc), Step: 4 * time.Minute,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	pis := parse(t, buf.String())[`energia_imposto_ratio{imposto="pis"}`]
+	for _, ts := range []time.Time{
+		time.Date(2026, 9, 5, 23, 56, 0, 0, loc), // last sample of 05/09
+		time.Date(2026, 9, 6, 1, 0, 0, 0, loc),   // first instant of 06/09
+		time.Date(2026, 9, 6, 12, 0, 0, 0, loc),
+	} {
+		if _, ok := pis[ts.Unix()]; !ok {
+			t.Errorf("no sample at %s", ts)
+		}
+	}
+	if got := pis[time.Date(2026, 9, 30, 23, 56, 0, 0, loc).Unix()]; got != 0.0089 {
+		t.Errorf("pis at 30/09 23:56 = %v, want September's 0.0089", got)
+	}
+	if got := pis[time.Date(2026, 10, 1, 0, 0, 0, 0, loc).Unix()]; got != 0.0027 {
+		t.Errorf("pis at 01/10 00:00 = %v, want October's 0.0027", got)
+	}
+}
+
+func TestFixtureRowsWithNbsp(t *testing.T) {
+	// The real page writes "0,07%&nbsp;" in some rows; they must not be lost.
+	h := fixtures(t).Aliquotas
+	for _, m := range []time.Time{time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2020, 5, 1, 0, 0, 0, 0, time.UTC)} {
+		a, err := h.At(m)
+		if err != nil || !a.Referencia.Equal(m) {
+			t.Errorf("%s: got %+v, %v", m.Format("01/2006"), a, err)
 		}
 	}
 }

@@ -213,10 +213,15 @@ type bandeiraRecord struct {
 	VlrAdicionalBandeira string `json:"VlrAdicionalBandeira"`
 }
 
+// RecentBandeiras is how many months of flags the live exporter reads: enough
+// to cover the current month, a few unpublished ones, and the next month once
+// ANEEL announces it.
+const RecentBandeiras = 6
+
 // Bandeira returns the flag of now's month, or the latest published one if
 // ANEEL hasn't announced the current month yet.
 func (c *Client) Bandeira(ctx context.Context, now time.Time) (Bandeira, error) {
-	h, err := c.Bandeiras(ctx, 6)
+	h, err := c.Bandeiras(ctx, RecentBandeiras)
 	if err != nil {
 		return Bandeira{}, err
 	}
