@@ -20,7 +20,7 @@ import (
 const MaxBodyBytes = 2 << 20
 
 // UserAgent identifies the exporter to upstreams.
-const UserAgent = "energia-tarifa-exporter (+https://github.com/MateuxLucax/energia-tarifa-exporter)"
+const UserAgent = "celesc-prometheus-exporter (+https://github.com/MateuxLucax/celesc-prometheus-exporter)"
 
 // ErrTooLarge is returned when a body exceeds MaxBodyBytes.
 var ErrTooLarge = errors.New("response body too large")

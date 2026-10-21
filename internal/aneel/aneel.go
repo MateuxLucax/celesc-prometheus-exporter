@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/fetch"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/fetch"
 )
 
 // DefaultBaseURL is ANEEL's CKAN API root.

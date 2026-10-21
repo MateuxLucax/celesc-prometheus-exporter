@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/aneel"
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/celesc"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/aneel"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/celesc"
 )
 
 // DefaultRefreshTimeout bounds one refresh of all sources.

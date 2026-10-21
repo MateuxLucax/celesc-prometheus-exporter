@@ -2,9 +2,9 @@
 #   cp .env.example .env && docker compose up -d
 # To build from source instead, use docker-compose.build.yml.
 services:
-  energia-tarifa-exporter:
-    image: ghcr.io/mateuxlucax/energia-tarifa-exporter:latest
-    container_name: energia-tarifa-exporter
+  celesc-prometheus-exporter:
+    image: ghcr.io/mateuxlucax/celesc-prometheus-exporter:latest
+    container_name: celesc-prometheus-exporter
     env_file: .env
     ports:
       # /metrics is unauthenticated, so bind to loopback by default. To let a

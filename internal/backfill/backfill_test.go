@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/exporter"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/exporter"
 )
 
 // Reuses the real responses captured for the exporter's golden tests.

@@ -35,4 +35,4 @@ go run . backfill -from 2025-10-21 -o energia.om   # past prices as OpenMetrics 
 
 ## Deployment
 
-Pushes to `main` build and publish `ghcr.io/mateuxlucax/energia-tarifa-exporter` via `.github/workflows/ci.yml`, only after gofmt/vet/tests pass. Actions and base images are pinned (SHA / digest) and bumped by Dependabot.
+Pushes to `main` build and publish `ghcr.io/mateuxlucax/celesc-prometheus-exporter` via `.github/workflows/ci.yml`, only after gofmt/vet/tests pass. Actions and base images are pinned (SHA / digest) and bumped by Dependabot.

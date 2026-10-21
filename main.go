@@ -1,4 +1,4 @@
-// Command energia-tarifa-exporter exposes the price of residential electricity
+// Command celesc-prometheus-exporter exposes the price of residential electricity
 // in Brazil as Prometheus metrics at /metrics: the tariff (TE + TUSD) and the
 // bandeira from ANEEL's open data, the monthly PIS/COFINS from Celesc's tariff
 // page, and ICMS from configuration.
@@ -21,9 +21,9 @@ import (
 	"time"
 	_ "time/tzdata" // distroless has no zoneinfo; embed it for TZ
 
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/aneel"
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/celesc"
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/exporter"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/aneel"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/celesc"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/exporter"
 )
 
 func main() {
@@ -82,7 +82,7 @@ func main() {
 	if pisCofinsManual {
 		pc = "manual"
 	}
-	log.Printf("energia-tarifa-exporter listening on :%s, %s %s %s/%s, ICMS %.2f%%, PIS/COFINS %s, refresh every %s",
+	log.Printf("celesc-prometheus-exporter listening on :%s, %s %s %s/%s, ICMS %.2f%%, PIS/COFINS %s, refresh every %s",
 		port, filter.Distribuidora, filter.Subgrupo, filter.Classe, filter.Subclasse, cfg.ICMSPercent, pc, interval)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("server error: %v", err)

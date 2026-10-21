@@ -10,9 +10,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/aneel"
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/backfill"
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/celesc"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/aneel"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/backfill"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/celesc"
 )
 
 // runBackfill implements `exporter backfill`: it reads the whole history once
@@ -27,10 +27,10 @@ func runBackfill(args []string) error {
 		step     = fs.Duration("step", 2*time.Minute, fmt.Sprintf("sample spacing, at most %s (Prometheus' lookback)", backfill.MaxStep))
 		out      = fs.String("o", "-", "output file, - for stdout")
 		job      = fs.String("job", "energia", "job label, as in the Prometheus scrape config")
-		instance = fs.String("instance", "energia-tarifa-exporter:3000", "instance label, as in the Prometheus scrape config")
+		instance = fs.String("instance", "celesc-prometheus-exporter:3000", "instance label, as in the Prometheus scrape config")
 	)
 	fs.Usage = func() {
-		fmt.Fprintln(fs.Output(), "usage: energia-tarifa-exporter backfill [flags]\n\nWrites OpenMetrics for: promtool tsdb create-blocks-from openmetrics FILE DIR")
+		fmt.Fprintln(fs.Output(), "usage: celesc-prometheus-exporter backfill [flags]\n\nWrites OpenMetrics for: promtool tsdb create-blocks-from openmetrics FILE DIR")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {

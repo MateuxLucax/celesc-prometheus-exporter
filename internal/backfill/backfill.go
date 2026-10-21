@@ -18,9 +18,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/aneel"
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/celesc"
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/exporter"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/aneel"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/celesc"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/exporter"
 )
 
 // MaxStep is the largest step that still lines up with Prometheus' default

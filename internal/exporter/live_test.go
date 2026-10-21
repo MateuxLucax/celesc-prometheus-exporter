@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/aneel"
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/celesc"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/aneel"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/celesc"
 )
 
 // TestLiveSources hits the real ANEEL API and Celesc page. It is the contract

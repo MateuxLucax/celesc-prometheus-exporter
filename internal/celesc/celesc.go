@@ -14,7 +14,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/MateuxLucax/energia-tarifa-exporter/internal/fetch"
+	"github.com/MateuxLucax/celesc-prometheus-exporter/internal/fetch"
 )
 
 // DefaultURL is the Celesc page holding the "Alíquotas de tributos" table.

@@ -1,4 +1,4 @@
-# Energia Tarifa Exporter
+# Celesc Prometheus Exporter
 
 ![Go](https://img.shields.io/badge/go-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white)
 ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
@@ -88,7 +88,7 @@ Prometheus only has what it scraped, so a power history recorded before the expo
 ```bash
 # Same .env as the exporter, so ICMS and the tariff filter match.
 # -to: when the live exporter started scraping, so the two don't overlap.
-docker run --rm --env-file .env -v "$PWD:/out" ghcr.io/mateuxlucax/energia-tarifa-exporter:latest \
+docker run --rm --env-file .env -v "$PWD:/out" ghcr.io/mateuxlucax/celesc-prometheus-exporter:latest \
   backfill -from 2025-10-21 -to 2026-10-21T12:00:00-03:00 -o /out/energia.om
 
 # Turn it into TSDB blocks (monthly blocks; promtool's 2h default makes thousands)
@@ -100,7 +100,7 @@ docker run --rm -v "$PWD:/out" --entrypoint promtool prom/prometheus:latest \
 mv blocks/* /path/to/prometheus/data/
 ```
 
-`-job` and `-instance` (default `energia` and `energia-tarifa-exporter:3000`) should match the scrape config so the backfilled and live series line up. Samples are written every `-step` (default 2m, at most 4m) so queries that join against them stay inside Prometheus' 5-minute lookback; one year is about 2.1M samples (~230 MB of text, ~1.5 MB of blocks, about 20 s in promtool).
+`-job` and `-instance` (default `energia` and `celesc-prometheus-exporter:3000`) should match the scrape config so the backfilled and live series line up. Samples are written every `-step` (default 2m, at most 4m) so queries that join against them stay inside Prometheus' 5-minute lookback; one year is about 2.1M samples (~230 MB of text, ~1.5 MB of blocks, about 20 s in promtool).
 
 Each day is priced with the tariff, flag and PIS/COFINS of that day's month. ICMS comes from `ICMS_PERCENT`, so periods with another rate (SC charged 25% before 07/2022) need separate runs. Days whose month isn't published yet are skipped, never priced with another month's numbers. The Celesc table goes back to 01/2019 and the flags to 2015.
 

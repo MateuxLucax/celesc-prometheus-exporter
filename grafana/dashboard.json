@@ -815,5 +815,5 @@
       ]
     }
   ],
-  "description": "Preço do kWh residencial (ANEEL + Celesc) do energia-tarifa-exporter. A linha 'Custo do consumo' usa o tapo-p110 exporter e fica vazia sem ele."
+  "description": "Preço do kWh residencial (ANEEL + Celesc) do celesc-prometheus-exporter. A linha 'Custo do consumo' usa o tapo-p110 exporter e fica vazia sem ele."
 }
