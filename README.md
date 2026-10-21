@@ -95,9 +95,10 @@ docker run --rm --env-file .env -v "$PWD:/out" ghcr.io/mateuxlucax/celesc-promet
 docker run --rm -v "$PWD:/out" --entrypoint promtool prom/prometheus:latest \
   tsdb create-blocks-from openmetrics --max-block-duration=744h /out/energia.om /out/blocks
 
-# Move the blocks into Prometheus' data directory; it picks them up on its own
-# (or on restart) and compacts them with the rest.
-mv blocks/* /path/to/prometheus/data/
+# Move the blocks into Prometheus' TSDB directory (--storage.tsdb.path; with the
+# official image's defaults that's data/ under the /prometheus volume), owned by
+# the Prometheus user, then restart Prometheus so it loads them right away.
+mv blocks/* /path/to/prometheus-volume/data/
 ```
 
 `-job` and `-instance` (default `energia` and `celesc-prometheus-exporter:3000`) should match the scrape config so the backfilled and live series line up. Samples are written every `-step` (default 2m, at most 4m) so queries that join against them stay inside Prometheus' 5-minute lookback; one year is about 2.1M samples (~230 MB of text, ~1.5 MB of blocks, about 20 s in promtool).

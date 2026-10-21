@@ -313,7 +313,8 @@
           },
           "refId": "A",
           "expr": "energia_fonte_sucesso",
-          "legendFormat": "{{fonte}}"
+          "legendFormat": "{{fonte}}",
+          "instant": true
         }
       ],
       "fieldConfig": {
