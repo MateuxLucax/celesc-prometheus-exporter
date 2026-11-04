@@ -1,6 +1,6 @@
 # Build a static binary, then ship it on distroless. Base images are pinned by
 # digest; Dependabot bumps them.
-FROM golang:1.26-bookworm@sha256:fe3da92a5cb2881e4aa75e625cb0b7c50571632fb4cf340cbe53e6ccdcffdd51 AS build
+FROM golang:1.27-bookworm@sha256:d9b6a1beb9474adc2a1ce842573639b44b2a0dd49b6669f51d3821baf9ec37c9 AS build
 
 WORKDIR /src
 
